@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>A Look at Flight Patterns From San Francsco Airport in 2008</h1>
+
+<p>I decided to look at the flight that come in and out of the San Francisco International Airport every data. My first attemp was to make a simple of the United States (excluding Alaska) and mark all the airports listed in the data set on the map. For this I used the data from http://openflights.org/data.html. They provide a fata set with the airport codes and latitude and longitude coordinates of all the major airports in US (see Index1.html)</p>
+
+</body>
+</html>

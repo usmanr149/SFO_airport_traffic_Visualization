@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<head>
+	<meta charset="utf-8">
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script type='text/javascript' src="variables.js"> 
+</script>
+<script type="text/javascript" src="slider.js"></script>
+<script type="text/javascript" src="CheckBox.js"></script>
+<script type="text/javascript" src="bars.js"></script>
+<script type="text/javascript" src="MakeButtons.js"></script>
+<script type="text/javascript" src="drawPlot.js"></script>
+<script type="text/javascript">
+//get the map of america first
+function draw(geo_data){
+
+	//Create a projection of the map
+	projection = d3.geo.albersUsa()
+		.scale(1000)
+		.translate([width / 2, height / 2]);
+
+	//creates the paths for the states
+	var path = d3.geo
+		.path()
+		.projection(projection);
+
+	//Select the rectangle where map will be drawn
+	svg = d3.select(".map").append("svg")
+	    .attr("width", width)
+	    .attr("height", height);
+
+	//Draw the rectangle
+	svg.append("rect")
+	    .attr("class", "background")
+	    .attr("width", width)
+	    .attr("height", height)
+    	.attr("fill", "none");
+
+    //Put a headline in the rectangle
+	svg.append("text")
+		.attr("class", "H_text")
+		.attr("x", width/2)             
+        .attr("y", 20)
+		.attr("text-anchor", "middle")  
+        .style("font-size", "22px")
+        .style("fill", "black") 
+        .style("text-decoration", "underline")  
+        .text("Flight Patterns From San Francisco International Airport Throughout 2008");
+
+    //make the map
+    //states can be selected and deselected
+	var map = svg.selectAll("path")
+		.data(geo_data.features)
+		.enter()
+		.append("path")
+		.attr("d", path)
+		.attr("class", "states")
+		.style("fill", "rgb(206, 249, 163)")
+		.style("stroke", "black")
+		.style("stroke-width", 0.8)
+		.on("mouseover", function() { tooltip.style("display", null); })
+		.on('mousemove', function(d, i) {
+            var currentState = this;
+            d3.select(this)
+            	.style('fill-opacity', 0.5);
+            var xPosition = d3.mouse(this)[0] - 15;
+			var yPosition = d3.mouse(this)[1] - 25;
+			tooltip.attr("transform", "translate(" + xPosition + "," + yPosition + ")");
+			tooltip.select("text").text(d.properties.NAME);
+        })
+		.on('mouseout', function(d, i) {
+            d3.selectAll('path')
+            	.style({'fill-opacity':1});
+            tooltip.style("display", "none");
+        })
+        .on("click", function(d, i){
+        	if(d3.select(this).style("fill") == "rgb(206, 249, 163)"){
+	        	currentColor = "rgb(227, 159, 248)";
+	        	d3.select(this).style("fill", currentColor);
+	        	state_selected.push(d.properties.NAME);
+				update(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+	        }
+	        else{
+	        	currentColor = "rgb(206, 249, 163)";
+	        	d3.select(this)
+	        		.style("fill", currentColor);
+	        	var index = state_selected.indexOf(d.properties.NAME);
+	        	state_selected.splice(index, 1);
+				update(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+	        }
+        });
+
+    // Prep the tooltip bits, initial display is hidden
+	var tooltip = svg.append("g")
+		.attr("class", "tooltip")
+		.style("display", "none");
+
+	tooltip.append("text")
+		.attr("x", 15)
+		.attr("dy", "1.2em")
+		.style("text-anchor", "middle")
+		.style("fill", "black")
+		.attr("font-size", "12px")
+		.attr("font-weight", "bold");
+
+	//longitude and latitude and longitude of SFO -122.3748889, 37.61897222
+	//draw a circle where SFO is and put a label beside it
+	x = projection([-122.3748889, 37.61897222]);
+	svg.append("circle")
+       .attr("cx", x[0])
+       .attr("cy", x[1])
+       .attr("r", 10)
+       .attr("stroke", "#000")
+       .attr("fill", "#E0D80A");
+
+    svg.append("text")
+		.attr("class", "H_text")
+        .attr("x", x[0] - 30)             
+        .attr("y", x[1] + 5)
+        .attr("text-anchor", "middle") 
+        .style("fill", "black") 
+        .style("font-size", "16px")
+        .text("SFO");
+
+	//Make the checkboxes for selecting arrivals and departures and make the bar charts and update the flight paths.
+
+	CheckBox();
+	bars(1, 1);
+	//update(1,1);
+}
+			
+//update based on the month and day selected.
+function update(month, day){
+
+	//filter the data on the month and day selected on the slider
+	var new_data = data.filter(function(d){
+		return (d.Month == month && d.DayofMonth == day);
+	});
+
+	//filter the data on the states selected
+	if(state_selected.length > 0){
+		var combined_data = [];
+		for(var i = 0; i < state_selected.length; i++){
+			if(state_selected[i] == "California"){
+				new_data_piece = new_data.filter(function(d){
+				return (d.D_State == state_selected[i] && d.O_State == state_selected[i]);	
+				})
+			}
+			else{
+			new_data_piece = new_data.filter(function(d){
+				return (d.O_State == state_selected[i] || d.D_State == state_selected[i]);
+				});
+			}
+		//data from the selected states and concanted in to a single array.
+		combined_data = combined_data.concat(new_data_piece);
+		}
+	}
+	else{
+		//If no states is selected then all flight paths for that day are shown
+		combined_data = new_data;
+	}
+
+
+	//update for when checkboxes are clicked
+	var choices = [], newData;
+	d3.selectAll(".mycheckbox").each(function(d){
+    cb = d3.select(this);
+    if(cb.property("checked")){
+    		choices.push(cb.property("__data__"));
+    	}
+  	});
+
+	//based on checkboxes clicked only arrivals, departures or both can be selected.
+	if(choices.length > 0){
+		newData = combined_data.filter(function(d,i){
+			for (var zig=0; zig<choices.length; zig++){
+				if(choices[zig] == "Departures"){
+					if(d.Origin == "SFO"){
+						return d;
+					}
+				}
+				if(choices[zig] == "Arrivals"){
+					if(d.Dest == "SFO"){
+						return d;
+					}
+				}
+		}
+	})}
+	else {
+		//if no check box is clicked then no flight paths are shown.
+  		newData = [];     
+	}
+
+	//this function returns an arc path between the starting and ending points.
+	function arc(d){
+		var dx = d[0].x - d[1].x,
+  		dy = d[0].y - d[1].y,
+  		dr = Math.sqrt(dx * dx + dy * dy);
+			return "M" + d[0].x + "," + d[0].y + "A" + dr + "," + dr + " 0 0,1 " + d[1].x + "," + d[1].y;
+	}
+
+	// remove any previously drawn lines and the date on top.
+	svg.selectAll(".line").remove();
+	svg.selectAll(".text").remove();
+
+	//dates to displayed on top. These can be updated by the slider.
+	svg.append("text")
+		.attr("class", "text")
+        .attr("x", (width / 2))             
+        .attr("y", 50)
+        .attr("text-anchor", "middle") 
+        .style("fill", "black") 
+        .style("font-size", "16px") 
+        .style("text-decoration", "underline")  
+        .text(function(){ 
+        	//special days get a special headline
+        	if(month_names[month] == "May" && day == 31){
+        		var special_day = "Memorial Day";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "July" && day == 4){
+        		var special_day = "Independence Day";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "September" && day == 1){
+        		var special_day = "Labor Day";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "October" && day == 14){
+        		var special_day = "Thanksgiving Day";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "November" && day == 4){
+        		var special_day = "Presidential Election Day";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "December" && day == 25){
+        		var special_day = "Christmas Day";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "December" && day == 31){
+        		var special_day = "New Year's Eve";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "July" && day == 11){
+        		var special_day = "Busiest Day of the Year";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else if(month_names[month] == "November" && day == 27){
+        		var special_day = "Slowest Day of the Year";
+        		return special_day + ", " + month_names[month] + ", " + day + " 2008";
+        	}
+        	else{
+        	return month_names[month] + ", " + day + " 2008";
+        }
+    	});
+
+    // Draw the flight path and append them to the map
+	svg.selectAll(".line")
+		.data(newData)
+		.enter()
+		.append("path")
+		.attr("d", function(d){
+			//The latitudes and longitudes of the airports are projected onto our map.
+			var coords_1 = projection([d.O_Longitude, d.O_Latitude]);
+			var coords_2 = projection([d.D_Longitude, d.D_Latitude]);
+			var holder = [ {"x": coords_1[0], 
+			"y": coords_1[1] }, 
+			{"x": coords_2[0], 
+			"y": coords_2[1]} ];
+			//The arc function draws an arc between the airport on the map.
+			return arc(holder);
+		})
+		.transition()
+		.duration(750)
+		.attr("class", "line")
+		.attr("stroke", function(d){
+			//Flights leaving SFO are red and arrivals blue
+			if (d.Origin == "SFO") {return "#F51D1D";}
+			else{return "#090352";}
+		})
+    	.attr("stroke-width", 0.3)
+    	.attr("fill", "none")
+    	.style("opacity", 0.5);
+}
+
+//This runs the flight path shown at the begining of the animation
+function paths(){
+	var interval = setInterval(function(){
+		month_idx++;
+		update(months[month_idx], 1);
+		update_bars(months[month_idx], 1);
+		console.log("month: " + month_names[months[month_idx]])
+			if (month_idx > 10){
+				//change the title of the chart after animation ends.
+				d3.select(".H_text").text("San Francisco International Airport (SFO) is Busiest During Summer")
+
+				//append text to let user know that states are clickable
+				svg.append("text")
+					.attr("class", "b_text")
+					.attr("x", 100)             
+			        .attr("y", height-100)
+					.attr("text-anchor", "middle")  
+			        .style("font-size", "16px")
+			        .style("fill", "black") 
+			        .style("text-decoration", "underline")  
+			        .text("States are clickable");
+					
+				update_bars(6,15);
+				update(6, 16);
+				MakeButtons();
+				Slider();
+				drawPlot();
+				updateData();
+				clearInterval(interval);
+			}
+	}, 1000);
+}
+
+//This function responds to the play and pause buttons beside the slider.
+function updateData(){
+
+	//When the play button is clicked the play variable is set to true and the current state of the button becomes the pause sign.
+	//When the pause is clicked the play variable becomes false and the current state of the button becomes the play sign.
+    if(currently == "Play"){
+    	play = true;
+    	currently = "Pause";
+    }
+    else{
+    	play = false;
+    	currently = "Play";
+    }
+
+	updatehere();
+
+	function updatehere(){
+		if(currentDate > new Date("2008-12-31")){
+			currentDate = new Date('2008-01-01')
+		}
+		//if play is true, we enter an animation where the slider is updated by a day. 
+		if(play){
+			currentDate.setDate(currentDate.getDate() + 1);
+			console.log(currentDate);
+			update(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+			update_bars(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+			Slider.updateSlider(currentDate);
+
+			setTimeout(updatehere, 700);
+		}
+	}
+}
+</script>
+</head>
+<body>
+<link rel="stylesheet" href="theme.css">
+<div class="container">
+	<svg class="map"></svg>
+	<svg class="chart">
+	</svg>
+</div>
+<script type="text/javascript">
+	/*
+	Use D3 to load the GeoJSON file and draw the map
+	*/
+	d3.json("../us_states.json", draw);
+	//exeute the part to start the animation, draw the checkboxes, buttons and time slider.
+	paths();
+	//function to respond to date buttons
+	function clickResponses(){
+		update(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+		update_bars(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+		Slider.updateSlider(currentDate);
+	}
+</script>
+</body>

@@ -1,0 +1,68 @@
+div {
+  fill: white;
+  pointer-events: all;
+  float: left;
+}
+.axis {
+  fill: black;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+.axis .halo {
+  stroke: gray;
+  stroke-width: 4px;
+  stroke-linecap: round;
+}
+.container{
+    background-color:white;
+    display:flex;
+}
+.map{
+    background-color:white;
+    width: 900px;
+    height: 500px;
+}
+.chart{
+    background-color: white;
+    flex-grow: 1;
+}
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+.x.axis path {
+  stroke: #fff;
+  stroke: black;
+}
+.mycheckbox{
+  display:inline-block;
+  width:14px;
+  height:14px;
+  margin:-1px 4px 0 0;
+  vertical-align:middle;
+  cursor:pointer;
+}
+.background{
+  fill: white;
+}
+.line{
+  pointer-events: none;
+}
+.states{
+  pointer-events: fill;
+}
+.option {
+  font-family: Play;
+  color: #ffffff;
+  font-size: 12px;
+  width: 12%;
+  background: #303030;
+  padding: 10px 20px 10px 20px;
+}
+.option:hover {
+  background: #4c4d4d;
+}

@@ -1,0 +1,20 @@
+//This function creates two checkboxes below the map
+function CheckBox(){
+
+	var form = d3.select("body").append("div")
+		.attr("width", 200)
+    	.attr("height", 100);
+	
+	labels = form.selectAll("label")
+	    .data(CheckBoxes)
+	    .enter()
+	    .append("label")
+	    .text(function(d) {
+	    	return d;
+	    })
+	    .insert("input")
+	    .attr("type", "checkbox")
+	    .attr("class", "mycheckbox")
+	    .attr("checked", true);
+
+}

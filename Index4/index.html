@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<head>
+	<meta charset="utf-8">
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script type='text/javascript' src="variables.js"> 
+</script>
+<script type="text/javascript" src="slider.js"></script>
+<script type="text/javascript" src="CheckBox.js"></script>
+<script type="text/javascript" src="bars.js"></script>
+<script type="text/javascript">
+	//get the map of america first
+function draw(geo_data){
+
+	active = d3.select(null);
+
+	//d3.select(".map").attr("align","left");
+
+	projection = d3.geo.albersUsa()
+			.scale(1000)
+			.translate([width / 2, height / 2]);
+
+	var path = d3.geo.path().projection(projection);
+
+	svg = d3.select(".map").append("svg")
+	    .attr("width", width)
+	    .attr("height", height);
+
+	svg.append("rect")
+	    .attr("class", "background")
+	    .attr("width", width)
+	    .attr("height", height)
+	    .attr("stroke", "#000")
+    	.attr("fill", "none");
+
+	svg.append("text")
+		.attr("class", "H_text")
+		.attr("x", width/2)             
+        .attr("y", 25)
+		.attr("text-anchor", "middle")  
+        .style("font-size", "22px")
+        .style("fill", "black") 
+        .style("text-decoration", "underline")  
+        .text("Traffic Patterns at San Francisco International Airport");
+
+    //make the map
+    //California has a special color
+	var map = svg.selectAll("path")
+		.data(geo_data.features)
+		.enter()
+		.append("path")
+		.attr("d", path)
+		.style("fill", function(d){
+			if(d.properties.NAME == "California"){
+				return "#E0D80A"
+			}
+			else{
+			return "#CEF9A3";}
+		})
+		.style("stroke", "black")
+		.style("stroke-width", 0.5)
+		.on('mouseover', function(d, i) {
+
+                var currentState = this;
+                d3.select(this).style('fill-opacity', 0.7);
+                /*var xPosition = d3.mouse(this)[0] - 15;
+    			var yPosition = d3.mouse(this)[1] - 25;*/
+    			tooltip.attr("transform", "translate(" + 30 + "," + 350 + ")");
+    			tooltip.select("text").text(d.properties.NAME);
+            })
+		.on('mouseout', function(d, i) {
+
+                    d3.selectAll('path')
+                            .style({
+                                'fill-opacity':1
+                            });
+                    tooltip.style("display", null);
+                });
+
+	// Prep the tooltip bits, initial display is hidden
+	var tooltip = svg.append("g")
+	  .attr("class", "tooltip")
+	  .style("display", "none");
+	    
+	tooltip.append("rect")
+	  .attr("width", 50)
+	  .attr("height", 30)
+	  .attr("fill", "white")
+	  .style("opacity", 0.8);
+
+	tooltip.append("text")
+	  .attr("x", 15)
+	  .attr("dy", "1.2em")
+	  .style("text-anchor", "middle")
+	  .style("fill", "black")
+	  .attr("font-size", "12px")
+	  .attr("font-weight", "bold");
+
+	//Make the checkboxes for selecting arrivals and departures
+	var Check = CheckBox();
+	bars(1, 5);
+	update(1,5);
+}
+			
+//update based on the month and day selected.
+function update(month, day){
+
+	var new_data = data.filter(function(d){ 
+		/*if(d.Month == month && d.DayofMonth == day){
+			console.log(d);
+	}*/
+		return (d.Month == month && d.DayofMonth == day);
+	});
+
+	//update for when checkboxes are clicked
+	var choices = [], newData;
+	d3.selectAll(".mycheckbox").each(function(d){
+    cb = d3.select(this);
+    if(cb.property("checked")){
+    		choices.push(cb.property("__data__"));
+    	}
+  	});
+
+	if(choices.length > 0){
+		newData = new_data.filter(function(d,i){
+			for (var zig=0; zig<choices.length; zig++){
+				if(choices[zig] == "Departures"){
+					if(d.Origin == "SFO"){
+						return d;
+					}
+				}
+				if(choices[zig] == "Arrivals"){
+					if(d.Dest == "SFO"){
+						return d;
+					}
+				}
+		}
+	})}
+	else {
+  		newData = [];     
+	}
+
+	//debugger;
+
+	function arc(d){
+		var dx = d[0].x - d[1].x,
+  		dy = d[0].y - d[1].y,
+  		dr = Math.sqrt(dx * dx + dy * dy);
+			return "M" + d[0].x + "," + d[0].y + "A" + dr + "," + dr + " 0 0,1 " + d[1].x + "," + d[1].y;
+	}
+
+	// remove any previously drawn lines
+	svg.selectAll(".line").remove();
+	svg.selectAll(".text").remove();
+
+	//text to displayed on top and update
+	svg.append("text")
+		.attr("class", "text")
+        .attr("x", (width / 2))             
+        .attr("y", 50)
+        .attr("text-anchor", "middle") 
+        .style("fill", "black") 
+        .style("font-size", "16px") 
+        .style("text-decoration", "underline")  
+        .text(month_names[month] + ", " + day + " 2008");
+        /*month_names[month_idx]*/
+
+    // Define the line
+	svg.selectAll(".line")
+		.data(newData)
+		.enter()
+		.append("path")
+		.attr("d", function(d){ 
+		var coords_1 = projection([d.O_Longitude, d.O_Latitude]);
+		var coords_2 = projection([d.D_Longitude, d.D_Latitude]);
+		var holder = [ {"x": coords_1[0], 
+		"y": coords_1[1] }, 
+		{"x": coords_2[0], 
+		"y": coords_2[1]} ];
+		return arc(holder);
+		})
+		.transition()
+		.duration(750)
+		.attr("class", "line")
+		.attr("stroke", function(d){
+			if (d.Origin == "SFO") {return "#F51D1D";}
+			else{return "#090352";}
+		})
+    	.attr("stroke-width", 0.3)
+    	.attr("fill", "none")
+    	.style("opacity", 0.5);
+}
+
+//update the flight paths
+function paths(){
+	var interval = setInterval(function(){
+	month_idx++;
+	//debugger;
+	update_bars(months[month_idx], 5);
+	update(months[month_idx], 5);
+		if (month_idx > 10){
+			update_bars(6,16);
+			update(6, 16);
+			var slider = Slider();
+			updateData();
+			clearInterval(interval);
+		}
+	}, 1000);
+}
+
+function updateData(){
+
+    if(d3.select(".play_button").text() == "Play"){
+    	play = true;
+     	d3.select(".play_button").text("Pause");}
+    else{
+      	play = false;
+      	d3.select(".play_button").text("Play");}
+
+	updatehere();
+
+	function updatehere(){
+		if(play){
+			if(currentDate <= new Date("2008-12-31")){
+				currentDate.setDate(currentDate.getDate() + 1);
+				console.log(currentDate);
+				update(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+				update_bars(+month_names.indexOf(String(getMonth(currentDate))), +getDay(currentDate));
+				Slider.updateSlider(currentDate);
+				setTimeout(updatehere, 750);
+			}
+			else{
+				play = false;
+			}
+		}
+		else{
+			play = false;
+		}
+	}
+}
+</script>
+</head>
+<body>
+<link rel="stylesheet" href="theme.css">
+<div class="container">
+	<svg class="map"></svg>
+	<svg class="chart">
+	</svg>
+</div>
+<div id="option">
+    <button class="play_button" 
+           onclick="updateData()">Pause</button>
+</div>
+<script type="text/javascript">
+	/*
+	Use D3 to load the GeoJSON file
+	*/
+	d3.json("../us_states.json", draw);
+	paths();
+</script>
+</body>
